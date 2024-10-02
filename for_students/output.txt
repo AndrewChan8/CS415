@@ -1,0 +1,24 @@
+Line 1:
+	Line segment 1:
+		Token 1: test
+Line 2:
+	Line segment 1:
+		Token 1: pwd
+Line 3:
+	Line segment 1:
+		Token 1: pwd
+Line 4:
+	Line segment 1:
+		Token 1: input.txt
+Line 5:
+	Line segment 1:
+		Token 1: ls
+Line 6:
+	Line segment 1:
+		Token 1: ls
+Line 7:
+	Line segment 1:
+		Token 1: pwd
+Line 8:
+	Line segment 1:
+		Token 1: ls
