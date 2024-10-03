@@ -25,22 +25,6 @@ int count_token (char* buf, const char* delim)
 	*			c.	account NULL for the last token
 	*	#3. return the number of token (note not number of delimeter)
 	*/
-
-	char *token, *ptr1, *str1, *placeholder;
-	int counter = 1;
-
-	strtok_r(buf, "\n", &ptr1);
-
-	for(placeholder = str1 = strdup(buf);; str1 = NULL){
-		token = strtok_r(str1, delim, &ptr1);
-		if(token == NULL){
-			break;
-		}
-		counter++;
-	}
-
-	free(placeholder);
-	return counter;
 }
 
 command_line str_filler (char* buf, const char* delim)
@@ -57,24 +41,6 @@ command_line str_filler (char* buf, const char* delim)
 	*			fill command_list array with tokens, and fill last spot with NULL.
 	*	#6. return the variable.
 	*/
-
-	int i;
-	char *token, *ptr1, *str1, *placeholder;
-	command_line cmd;
-	cmd.num_token = count_token(buf, delim);
-
-	cmd.command_list = (char **)malloc(sizeof(char *) * cmd.num_token);
-
-	for(i = 0, placeholder = str1 = strdup(buf);; i++, str1 = NULL){
-		token = strtok_r(str1, delim, &ptr1);
-		if(token == NULL){
-			break;
-		}
-		cmd.command_list[i] = strdup(token);
-	}
-	free(placeholder);
-	cmd.command_list[cmd.num_token - 1] = NULL;
-	return cmd;
 }
 
 
@@ -84,8 +50,4 @@ void free_command_line(command_line* command)
 	/*
 	*	#1.	free the array base num_token
 	*/
-	for(int i = 0; i < command->num_token; i++){
-		free(command->command_list[i]);
-	}
-	free(command->command_list);
 }
