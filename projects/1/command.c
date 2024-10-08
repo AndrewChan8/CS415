@@ -1,22 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "string_parser.c"
+#include <dirent.h>
+#include "command.h"
 
 void listDir(){
+  DIR *dir;
   
+
 } /*for the ls command*/
 
-void showCurrentDir(); /*for the pwd command*/
+void showCurrentDir(){
 
-void makeDir(char *dirName); /*for the mkdir command*/
+} /*for the pwd command*/
 
-void changeDir(char *dirName); /*for the cd command*/
+void makeDir(char *dirName){
 
-void copyFile(char *sourcePath, char *destinationPath); /*for the cp command*/
+} /*for the mkdir command*/
 
-void moveFile(char *sourcePath, char *destinationPath); /*for the mv command*/
+void changeDir(char *dirName){
 
-void deleteFile(char *filename); /*for the rm command*/
+} /*for the cd command*/
 
-void displayFile(char *filename); /*for the cat command*/
+void copyFile(char *sourcePath, char *destinationPath){
+
+} /*for the cp command*/
+
+void moveFile(char *sourcePath, char *destinationPath){
+
+} /*for the mv command*/
+
+void deleteFile(char *filename){
+
+} /*for the rm command*/
+
+void displayFile(char *filename){
+
+} /*for the cat command*/

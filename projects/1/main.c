@@ -29,8 +29,11 @@ int main(int argc, char *argv[]){
           for(int j = 0; small_token.command_list[j] != NULL; j++){
             printf("%s\n", small_token.command_list[j]);
           }
+          free_command_line(&small_token);
         }
+        free_command_line(&large_token);
       }
     }
   }
+  return 0;
 }
