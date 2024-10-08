@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <string.h>
 #include "command.h"
 
 void write_message(char *message){
@@ -36,6 +37,11 @@ void lfcat()
 		if(strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){ // Skip the . and .. directories
 			continue;
 		}
+		if(entry->d_type == DT_REG){
+			write_message("File: ");
+		}
+		write(1, entry->d_name, strlen(entry->d_name));
+		write(1, "\n", 1);
 	}
 		/* You can debug by printing out the filenames here */
 
