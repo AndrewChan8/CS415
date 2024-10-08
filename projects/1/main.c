@@ -27,9 +27,15 @@ int main(int argc, char *argv[]){
         for(int i = 0; large_token.command_list[i] != NULL; i++){
           small_token = str_filler(large_token.command_list[i], " ");
           for(int j = 0; small_token.command_list[j] != NULL; j++){
-            // printf("%s\n", small_token.command_list[j]);
-            if(strcmp(small_token.command_list[j], "ls") == 0){
-              listDir();
+            if(strcmp(small_token.command_list[j], "ls") == 0){ // Check if ls
+              if(small_token.command_list[j+1]){ // Check if ls has a second parameter
+                printf("Error! Unsupported parameters for command: ls\n");
+                break;
+              }else{
+                listDir();
+              }
+            }else{
+              printf("Error! Unrecognized command: %s\n", small_token.command_list[j]);
             }
           }
           free_command_line(&small_token);
