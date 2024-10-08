@@ -27,7 +27,10 @@ int main(int argc, char *argv[]){
         for(int i = 0; large_token.command_list[i] != NULL; i++){
           small_token = str_filler(large_token.command_list[i], " ");
           for(int j = 0; small_token.command_list[j] != NULL; j++){
-            printf("%s\n", small_token.command_list[j]);
+            // printf("%s\n", small_token.command_list[j]);
+            if(strcmp(small_token.command_list[j], "ls") == 0){
+              listDir();
+            }
           }
           free_command_line(&small_token);
         }
