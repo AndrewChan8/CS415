@@ -27,12 +27,27 @@ int main(int argc, char *argv[]){
         for(int i = 0; large_token.command_list[i] != NULL; i++){
           small_token = str_filler(large_token.command_list[i], " ");
           for(int j = 0; small_token.command_list[j] != NULL; j++){
-            if(strcmp(small_token.command_list[j], "ls") == 0){ // Check if ls
+            if(strcmp(small_token.command_list[j], "ls") == 0){         // ls
               if(small_token.command_list[j+1]){ // Check if ls has a second parameter
                 printf("Error! Unsupported parameters for command: ls\n");
                 break;
               }else{
                 listDir();
+              }
+            }else if(strcmp(small_token.command_list[j], "pwd") == 0){  // pwd
+              if(small_token.command_list[j+1]){ // Check if ls has a second parameter
+                printf("Error! Unsupported parameters for command: pwd\n");
+                break;
+              }else{
+                showCurrentDir();
+              }
+            }else if(strcmp(small_token.command_list[j], "mkdir") == 0){
+              if(small_token.command_list[j+1] != NULL){ // Check if ls has a second parameter
+                makeDir(small_token.command_list[j+1]);
+                break; // Prevent dir name from being passed in as next command
+              }else{
+                printf("Error! No paramater specified for directory name\n");
+                break;
               }
             }else{
               printf("Error! Unrecognized command: %s\n", small_token.command_list[j]);

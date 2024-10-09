@@ -3,15 +3,22 @@
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "command.h"
 
 void write_message(char *message){// Helper function so I don't have to make a char[] everytime I want to write a message
   write(1, message, strlen(message));
 }
 
+int compare(const void *a, const void *b) {
+  return strcasecmp(*(const char **)a, *(const char **)b);
+}
+
 void listDir(){
   DIR *directory;
   struct dirent *entry;
+  char *filenames[128]; // Store the file names to then be sorted
+  int count = 0;
 
   directory = opendir(".");
   if(directory == NULL){
@@ -19,20 +26,35 @@ void listDir(){
     write(1, error, sizeof(error) - 1);
   }
   while((entry = readdir(directory)) != NULL){
-    write(1, entry->d_name, strlen(entry->d_name));
+    filenames[count] = strdup(entry->d_name);
+    count++;
+  }
+  closedir(directory);
+
+  qsort(filenames, count, sizeof(char *), compare);
+
+  for(int i = 0; i < count; i++){
+    write(1, filenames[i], strlen(filenames[i]));
     write(1, " ", 1);
+    free(filenames[i]);
   }
   write(1, "\n", 1);
-
-  closedir(directory);
 } /*for the ls command*/
 
 void showCurrentDir(){
-
+  char cwd[2048];
+  if(getcwd(cwd, sizeof(cwd)) != NULL){
+    write(1, cwd, strlen(cwd));
+    write(1, "\n", 1);
+  }else{
+    write_message("Error! Current directory could not be retrieved\n");
+  }
 } /*for the pwd command*/
 
 void makeDir(char *dirName){
-
+  if(mkdir(dirName, 0755) != 0){ // 755 is chmod 755
+    write_message("Error creating directory");
+  }
 } /*for the mkdir command*/
 
 void changeDir(char *dirName){
