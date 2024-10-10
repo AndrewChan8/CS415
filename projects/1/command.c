@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include "command.h"
 
 void write_message(char *message){// Helper function so I don't have to make a char[] everytime I want to write a message
@@ -53,12 +54,36 @@ void showCurrentDir(){
 
 void makeDir(char *dirName){
   if(mkdir(dirName, 0755) != 0){ // 755 is chmod 755
-    write_message("Error creating directory");
+    switch(errno){
+      case EEXIST:
+        write_message("Directory already exists!\n");
+        break;
+      default:
+        write_message("Error creating directory!\n");
+        break;
+    }
+
   }
 } /*for the mkdir command*/
 
 void changeDir(char *dirName){
-
+  if(chdir(dirName) != 0){
+    switch(errno){
+      case ENOENT:
+        write_message("Error! Directory does not exist\n");
+        break;
+      case ENOTDIR:
+        write_message("Error! ");
+        write_message(dirName);
+        write_message(" is not a directory\n");
+        break;
+      default:
+        write_message("Error! Unable to change to directory: ");
+        write_message(dirName);
+        write(1, "\n", 1);
+        break;
+    }
+  }
 } /*for the cd command*/
 
 void copyFile(char *sourcePath, char *destinationPath){
