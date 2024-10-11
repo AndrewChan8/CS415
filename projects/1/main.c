@@ -38,7 +38,7 @@ int main(int argc, char *argv[]){
 
             }else if(strcmp(small_token.command_list[j], "pwd") == 0){  // pwd
 
-              if(small_token.command_list[j+1]){ // Check if ls has a second parameter
+              if(small_token.command_list[j+1]){
                 printf("Error! Unsupported parameters for command: pwd\n");
                 break;
               }else{
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]){
 
             }else if(strcmp(small_token.command_list[j], "mkdir") == 0){
 
-              if(small_token.command_list[j+1] != NULL){ // Check if ls has a second parameter
+              if(small_token.command_list[j+1] != NULL){ 
                 makeDir(small_token.command_list[j+1]);
                 break; // Prevent dir name from being passed in as next command
               }else{
@@ -57,11 +57,21 @@ int main(int argc, char *argv[]){
 
             }else if(strcmp(small_token.command_list[j], "cd") == 0){
 
-              if(small_token.command_list[j+1] != NULL){ // Check if ls has a second parameter
+              if(small_token.command_list[j+1] != NULL){ 
                 changeDir(small_token.command_list[j+1]);
-                break; // Prevent dir name from being passed in as next command
+                break; 
               }else{
                 printf("Error! No paramater specified for directory change\n");
+                break;
+              }
+
+            }else if(strcmp(small_token.command_list[j], "cp") == 0){
+
+              if(small_token.command_list[j+1] != NULL && small_token.command_list[j+2] != NULL){
+                copyFile(small_token.command_list[j+1], small_token.command_list[j+2]);
+                break;
+              }else{
+                printf("Error! Needs both source and destination arguments\n");
                 break;
               }
 

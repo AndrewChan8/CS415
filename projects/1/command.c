@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "command.h"
 
 void write_message(char *message){// Helper function so I don't have to make a char[] everytime I want to write a message
@@ -87,7 +88,35 @@ void changeDir(char *dirName){
 } /*for the cd command*/
 
 void copyFile(char *sourcePath, char *destinationPath){
+  int sourceFile, destinationFile;
+  char buffer[1024];
+  ssize_t bytesRead;
 
+  sourceFile = open(sourcePath, O_RDONLY);
+  if(sourceFile < 0){
+    write_message("Error! Unable to open source file for reading\n");
+    return;
+  }
+
+  destinationFile = open(destinationPath, O_WRONLY | O_CREAT, 0644); // chmod access
+  if(destinationFile < 0){
+    write_message("Error! Unable to open destination file for writing\n");
+    return;
+  }
+
+  while((bytesRead = read(sourceFile, buffer, sizeof(buffer))) > 0){
+    if(write(destinationFile, buffer, bytesRead) != bytesRead){
+      write_message("Error! Unable to write data to destination file\n");
+      break;
+    }
+  }
+
+  if(bytesRead < 0){
+    write_message("Error! Unable to read data from source file\n");
+  }
+
+  close(sourceFile);
+  close(destinationFile);
 } /*for the cp command*/
 
 void moveFile(char *sourcePath, char *destinationPath){
