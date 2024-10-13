@@ -26,6 +26,7 @@ void listDir(){
   if(directory == NULL){
     char error[] = "Unable to read directory\n";
     write(1, error, sizeof(error) - 1);
+    return;
   }
   while((entry = readdir(directory)) != NULL){
     filenames[count] = strdup(entry->d_name);
