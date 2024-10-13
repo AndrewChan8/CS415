@@ -12,7 +12,99 @@ int main(int argc, char *argv[]){
   command_line small_token;
 
   if(argc > 1 && strcmp(argv[1], "-f") == 0){
-    printf("File mode\n");
+    if (argc < 3) {
+      printf("Error! No input file specified\n");  // Output to stdout
+      return 1;
+    }
+
+    FILE *file = fopen(argv[2], "r");
+    if (file == NULL) {
+      printf("Error! Unable to open the specified file\n");
+      return 1;
+    }
+
+    while (fgets(input, sizeof(input), file) != NULL) {
+      input[strcspn(input, "\n")] = '\0';  // Remove newline character from input
+
+      // Tokenize the input based on ';' (multiple commands in one line)
+      large_token = str_filler(input, ";");
+      for (int i = 0; large_token.command_list[i] != NULL; i++) {
+        small_token = str_filler(large_token.command_list[i], " ");
+        for (int j = 0; small_token.command_list[j] != NULL; j++) {
+          // Process commands as in interactive mode
+          if (strcmp(small_token.command_list[j], "ls") == 0) {
+            if (small_token.command_list[j+1]) {
+              printf("Error! Unsupported parameters for command: ls\n");
+              break;
+            } else {
+              listDir();
+            }
+          } else if (strcmp(small_token.command_list[j], "pwd") == 0) {
+            if (small_token.command_list[j+1]) {
+              printf("Error! Unsupported parameters for command: pwd\n");
+              break;
+            } else {
+              showCurrentDir();
+            }
+          } else if (strcmp(small_token.command_list[j], "mkdir") == 0) {
+            if (small_token.command_list[j+1] != NULL) { 
+              makeDir(small_token.command_list[j+1]);
+              break;
+            } else {
+              printf("Error! No parameter specified for directory name\n");
+              break;
+            }
+          } else if (strcmp(small_token.command_list[j], "cd") == 0) {
+            if (small_token.command_list[j+1] != NULL) { 
+              changeDir(small_token.command_list[j+1]);
+              break; 
+            } else {
+              printf("Error! No parameter specified for directory change\n");
+              break;
+            }
+          } else if (strcmp(small_token.command_list[j], "cp") == 0) {
+            if (small_token.command_list[j+1] != NULL && small_token.command_list[j+2] != NULL) {
+              copyFile(small_token.command_list[j+1], small_token.command_list[j+2]);
+              break;
+            } else {
+              printf("Error! Needs both source and destination arguments\n");
+              break;
+            }
+          } else if (strcmp(small_token.command_list[j], "mv") == 0) {
+            if (small_token.command_list[j+1] != NULL && small_token.command_list[j+2] != NULL) {
+              moveFile(small_token.command_list[j+1], small_token.command_list[j+2]);
+              break;
+            } else {
+              printf("Error! Needs both source and destination arguments\n");
+              break;
+            }
+          } else if (strcmp(small_token.command_list[j], "rm") == 0) {
+            if (small_token.command_list[j+1] != NULL) {
+              deleteFile(small_token.command_list[j+1]);
+              break;
+            } else {
+              printf("Error! File cannot be deleted\n");
+              break;
+            }
+          } else if (strcmp(small_token.command_list[j], "cat") == 0) {
+            if (small_token.command_list[j+1] != NULL) {
+              displayFile(small_token.command_list[j+1]);
+              break;
+            } else {
+              printf("Error! File cannot be displayed\n");
+              break;
+            }
+          } else {
+            printf("Error! Unrecognized command: %s\n", small_token.command_list[j]);
+          }
+        }
+        free_command_line(&small_token);
+      }
+      free_command_line(&large_token);
+    }
+    // Close the file
+    fclose(file);
+
   }else{
     printf("Interactive mode. Type 'exit' to exit.\n");
     while(1){
