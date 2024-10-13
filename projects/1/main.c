@@ -75,6 +75,36 @@ int main(int argc, char *argv[]){
                 break;
               }
 
+            }else if(strcmp(small_token.command_list[j], "mv") == 0){
+
+              if(small_token.command_list[j+1] != NULL && small_token.command_list[j+2] != NULL){
+                moveFile(small_token.command_list[j+1], small_token.command_list[j+2]);
+                break;
+              }else{
+                printf("Error! Needs both source and destination arguments\n");
+                break;
+              }
+
+            }else if(strcmp(small_token.command_list[j], "rm") == 0){
+
+              if(small_token.command_list[j+1] != NULL){
+                deleteFile(small_token.command_list[j+1]);
+                break;
+              }else{
+                printf("Error! File cannot be deleted\n");
+                break;
+              }
+
+            }else if(strcmp(small_token.command_list[j], "cat") == 0){
+
+              if(small_token.command_list[j+1] != NULL){
+                displayFile(small_token.command_list[j+1]);
+                break;
+              }else{
+                printf("Error! File cannot be displayed\n");
+                break;
+              }
+            
             }else{
               printf("Error! Unrecognized command: %s\n", small_token.command_list[j]);
             }

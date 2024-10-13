@@ -120,13 +120,29 @@ void copyFile(char *sourcePath, char *destinationPath){
 } /*for the cp command*/
 
 void moveFile(char *sourcePath, char *destinationPath){
-
+  if (rename(sourcePath, destinationPath) != 0) {
+    write_message("Error! Unable to move/rename the file or directory\n");
+  }
 } /*for the mv command*/
 
 void deleteFile(char *filename){
-
+  if (remove(filename) != 0) {
+    write_message("Error! Unable to delete the file or directory\n");
+  }
 } /*for the rm command*/
 
 void displayFile(char *filename){
+  int fd;
+  size_t bytes = 1024;
+  char buffer[bytes];
+  ssize_t bytesRead;
+  fd = open(filename, O_RDONLY);
 
+  while((bytesRead = read(fd, buffer, sizeof(buffer))) > 0){
+    if(write(1, buffer, bytesRead) != bytesRead){
+      write_message("Error! Unable to write file content to: STDOUT\n");
+    }
+  }
+  write(1, "\n", 1);
+  close(fd);
 } /*for the cat command*/
