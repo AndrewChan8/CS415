@@ -7,7 +7,6 @@
 #include "command.h"
 
 int main(int argc, char *argv[]){
-  // char *line = NULL;
   char input[128];
   FILE *file;
   FILE *fp;
