@@ -19,28 +19,13 @@ int compare(const void *a, const void *b) {
 void listDir(){
   DIR *directory;
   struct dirent *entry;
-  char *filenames[128]; // Store the file names to then be sorted
-  int count = 0;
 
   directory = opendir(".");
-  if(directory == NULL){
-    char error[] = "Unable to read directory\n";
-    write(1, error, sizeof(error) - 1);
-    return;
-  }
-  while((entry = readdir(directory)) != NULL){
-    filenames[count] = strdup(entry->d_name);
-    count++;
+  while ((entry = readdir(directory)) != NULL) {
+    write(1, entry->d_name, strlen(entry->d_name));
+    write(1, " ", 1);
   }
   closedir(directory);
-
-  qsort(filenames, count, sizeof(char *), compare);
-
-  for(int i = 0; i < count; i++){
-    write(1, filenames[i], strlen(filenames[i]));
-    write(1, " ", 1);
-    free(filenames[i]);
-  }
   write(1, "\n", 1);
 } /*for the ls command*/
 
@@ -92,6 +77,15 @@ void copyFile(char *sourcePath, char *destinationPath){
   int sourceFile, destinationFile;
   char buffer[1024];
   ssize_t bytesRead;
+  struct stat destStat;
+
+  if (stat(destinationPath, &destStat) == 0 && S_ISDIR(destStat.st_mode)) {
+    char *baseName = strrchr(sourcePath, '/');
+    baseName = baseName ? baseName + 1 : sourcePath;
+    char newDestPath[1024];
+    snprintf(newDestPath, sizeof(newDestPath), "%s/%s", destinationPath, baseName);
+    destinationPath = newDestPath;
+  }
 
   sourceFile = open(sourcePath, O_RDONLY);
   if(sourceFile < 0){
@@ -102,6 +96,7 @@ void copyFile(char *sourcePath, char *destinationPath){
   destinationFile = open(destinationPath, O_WRONLY | O_CREAT, 0644); // chmod access
   if(destinationFile < 0){
     write_message("Error! Unable to open destination file for writing\n");
+    close(sourceFile);
     return;
   }
 
@@ -121,29 +116,42 @@ void copyFile(char *sourcePath, char *destinationPath){
 } /*for the cp command*/
 
 void moveFile(char *sourcePath, char *destinationPath){
-  if (rename(sourcePath, destinationPath) != 0) {
+  struct stat destStat;
+
+  if (stat(destinationPath, &destStat) == 0 && S_ISDIR(destStat.st_mode)) {
+    char *baseName = strrchr(sourcePath, '/');
+    baseName = baseName ? baseName + 1 : sourcePath;
+    char newDestPath[1024];
+    snprintf(newDestPath, sizeof(newDestPath), "%s/%s", destinationPath, baseName);
+    destinationPath = newDestPath;
+  }
+  
+  if(rename(sourcePath, destinationPath) != 0) {
     write_message("Error! Unable to move/rename the file or directory\n");
   }
 } /*for the mv command*/
 
 void deleteFile(char *filename){
-  if (remove(filename) != 0) {
+  if(remove(filename) != 0) {
     write_message("Error! Unable to delete the file or directory\n");
   }
 } /*for the rm command*/
 
 void displayFile(char *filename){
   int fd;
-  size_t bytes = 1024;
-  char buffer[bytes];
-  ssize_t bytesRead;
   fd = open(filename, O_RDONLY);
+  char buffer[1024];
+  ssize_t bytesRead;
+
+  if (fd == -1) {
+    write(1, "cat: ", strlen("cat: "));
+    write(1, filename, strlen(filename));
+    write(1, ": ", strlen(": "));
+    write(1, "No such file or directory\n", strlen("No such file or directory\n"));
+  }
 
   while((bytesRead = read(fd, buffer, sizeof(buffer))) > 0){
-    if(write(1, buffer, bytesRead) != bytesRead){
-      write_message("Error! Unable to write file content to: STDOUT\n");
-    }
+    write(1, buffer, bytesRead);
   }
-  write(1, "\n", 1);
   close(fd);
 } /*for the cat command*/

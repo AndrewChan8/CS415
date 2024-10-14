@@ -72,8 +72,8 @@ command_line str_filler (char* buf, const char* delim)
 		}
 		cmd.command_list[i] = strdup(token);
 	}
+	cmd.command_list[i] = NULL;
 	free(placeholder);
-	cmd.command_list[cmd.num_token - 1] = NULL;
 	return cmd;
 }
 
