@@ -48,6 +48,10 @@ int main(int argc, char *argv[]){
 
     for(int i = 0; large_token.command_list[i] != NULL; i++){
       small_token = str_filler(large_token.command_list[i], " ");
+      if(small_token.command_list[0] == NULL){
+        free_command_line(&small_token);
+        continue;
+      }
 
       if(strcmp(small_token.command_list[0], "ls") == 0){
 
