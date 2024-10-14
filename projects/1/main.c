@@ -49,7 +49,6 @@ int main(int argc, char *argv[]){
     for(int i = 0; large_token.command_list[i] != NULL; i++){
       small_token = str_filler(large_token.command_list[i], " ");
 
-      char error[1024] = "Error! Unsupported parameters for command: ";
       if(strcmp(small_token.command_list[0], "ls") == 0){
 
         if(small_token.command_list[1]){ // Check if ls has a second parameter
