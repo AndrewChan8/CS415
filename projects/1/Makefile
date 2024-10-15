@@ -1,9 +1,3 @@
-# all:
-# 	gcc main.c string_parser.c command.c -o pseudo-shell
-
-# clean:
-# 	rm -f pseudo-shell
-
 all: pseudo-shell
 
 pseudo-shell: command.o main.o string_parser.o
