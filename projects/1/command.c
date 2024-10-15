@@ -82,10 +82,14 @@ void copyFile(char *sourcePath, char *destinationPath){
   if (stat(destinationPath, &destStat) == 0 && S_ISDIR(destStat.st_mode)) {
     char *baseName = strrchr(sourcePath, '/');
     baseName = baseName ? baseName + 1 : sourcePath;
+    
     char newDestPath[1024];
-    snprintf(newDestPath, sizeof(newDestPath), "%s/%s", destinationPath, baseName);
+    strcpy(newDestPath, destinationPath);
+    strcat(newDestPath, "/");
+    strcat(newDestPath, baseName);
     destinationPath = newDestPath;
   }
+
 
   sourceFile = open(sourcePath, O_RDONLY);
   if(sourceFile < 0){
@@ -121,10 +125,14 @@ void moveFile(char *sourcePath, char *destinationPath){
   if (stat(destinationPath, &destStat) == 0 && S_ISDIR(destStat.st_mode)) {
     char *baseName = strrchr(sourcePath, '/');
     baseName = baseName ? baseName + 1 : sourcePath;
+    
     char newDestPath[1024];
-    snprintf(newDestPath, sizeof(newDestPath), "%s/%s", destinationPath, baseName);
+    strcpy(newDestPath, destinationPath);
+    strcat(newDestPath, "/");
+    strcat(newDestPath, baseName);
     destinationPath = newDestPath;
   }
+
   
   if(rename(sourcePath, destinationPath) != 0) {
     write_message("Error! Unable to move/rename the file or directory\n");
