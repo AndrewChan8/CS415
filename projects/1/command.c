@@ -133,7 +133,6 @@ void moveFile(char *sourcePath, char *destinationPath){
     destinationPath = newDestPath;
   }
 
-  
   if(rename(sourcePath, destinationPath) != 0) {
     write_message("Error! Unable to move/rename the file or directory\n");
   }
