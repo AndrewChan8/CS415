@@ -12,10 +12,6 @@ void write_message(char *message){// Helper function so I don't have to make a c
   write(1, message, strlen(message));
 }
 
-int compare(const void *a, const void *b) {
-  return strcasecmp(*(const char **)a, *(const char **)b);
-}
-
 void listDir(){
   DIR *directory;
   struct dirent *entry;
@@ -122,7 +118,7 @@ void copyFile(char *sourcePath, char *destinationPath){
 void moveFile(char *sourcePath, char *destinationPath){
   struct stat destStat;
 
-  if (stat(destinationPath, &destStat) == 0 && S_ISDIR(destStat.st_mode)) {
+  if(stat(destinationPath, &destStat) == 0 && S_ISDIR(destStat.st_mode)) {
     char *baseName = strrchr(sourcePath, '/');
     baseName = baseName ? baseName + 1 : sourcePath;
     
@@ -150,10 +146,8 @@ void displayFile(char *filename){
   char buffer[1024];
   ssize_t bytesRead;
 
-  if (fd == -1) {
-    write_message("cat: ");
-    write(1, filename, strlen(filename));
-    write_message(": No such file or directory\n");
+  if(fd == -1) {
+    write_message("Error: File does not exit!\n");
   }
 
   while((bytesRead = read(fd, buffer, sizeof(buffer))) > 0){
