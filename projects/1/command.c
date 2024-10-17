@@ -151,10 +151,9 @@ void displayFile(char *filename){
   ssize_t bytesRead;
 
   if (fd == -1) {
-    write(1, "cat: ", strlen("cat: "));
+    write_message("cat: ");
     write(1, filename, strlen(filename));
-    write(1, ": ", strlen(": "));
-    write(1, "No such file or directory\n", strlen("No such file or directory\n"));
+    write_message(": No such file or directory\n");
   }
 
   while((bytesRead = read(fd, buffer, sizeof(buffer))) > 0){
