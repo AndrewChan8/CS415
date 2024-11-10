@@ -6,27 +6,26 @@
 #include <sys/wait.h>
 
 int main(int argc, char *argv[]){
-
   if(argc != 3){
-    printf("Invalid use: incorrect number of parameters\n");
-    exit(1);
+    fprintf(stderr, "Invalid use: incorrect number of parameters\n");
+    exit(EXIT_FAILURE);
   }
 
   if (strcmp(argv[1], "-f") != 0) {
-    printf("Error: Missing '-f' flag\n");
-    exit(1);
+    fprintf(stderr, "Error: Missing '-f' flag\n");
+    exit(EXIT_FAILURE);
   }
 
   FILE *file = fopen(argv[2], "r");
   if (!file) {
-    printf("Error opening file\n");
-    exit(1);
+    perror("Error opening file");
+    exit(EXIT_FAILURE);
   }
 
   int max_args = 10;
   char line[1024];
   pid_t pid_array[max_args];
-  int i = 0;
+  int num_processes = 0;
 
   while(fgets(line, sizeof(line), file) != NULL){
     line[strcspn(line, "\n")] = '\0';
@@ -43,23 +42,23 @@ int main(int argc, char *argv[]){
 
     pid_t pid = fork();
     if(pid < 0){
-      printf("Failed to allocate memory for pid array\n");
+      perror("Failed to fork process");
       fclose(file);
-      exit(1);
+      exit(EXIT_FAILURE);
     }else if(pid == 0){
       fclose(file);
       if(execvp(args[0], args) == -1) {
-        printf("Execvp failed for command '%s'\n", args[0]);
-        exit(1);
+        perror("Execvp failed");
+        exit(EXIT_FAILURE);
       }
     }else{
-      pid_array[i++] = pid;
+      pid_array[num_processes++] = pid;
     }
   }
   fclose(file);
-  for (int k = 0; k < i; k++) {
-    if (waitpid(pid_array[k], NULL, 0) < 0) {
-      printf("Waitpid failed\n");
+  for (int i = 0; i < num_processes; i++) {
+    if (waitpid(pid_array[i], NULL, 0) < 0) {
+      perror("Waitpid failed");
     }
   }
 
