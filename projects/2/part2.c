@@ -12,16 +12,16 @@ int main(int argc, char *argv[]){
     exit(1);
   }
 
-  if(strcmp(argv[1], "-f") != 0){
+  if(strcmp(argv[2], "-f") != 0){
     printf("No file inputted\n");
     exit(1);
   }else{
     printf("Error: No input file specified\nUsage: %s -f <input_file>\n", argv[0]);
   }
 
-  FILE *file = fopen(argv[2], "r");
+  FILE *file = fopen(argv[1], "r");
   if (!file) {
-    printf("Error opening file\n");
+    printf("Error opening file");
     exit(1);
   }
 
