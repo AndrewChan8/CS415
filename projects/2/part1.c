@@ -12,11 +12,9 @@ int main(int argc, char *argv[]){
     exit(1);
   }
 
-  if(strcmp(argv[1], "-f") != 0){
-    printf("No file inputted\n");
+  if (strcmp(argv[1], "-f") != 0) {
+    printf("Error: Missing '-f' flag\n");
     exit(1);
-  }else{
-    printf("Error: No input file specified\nUsage: %s -f <input_file>\n", argv[0]);
   }
 
   FILE *file = fopen(argv[2], "r");
@@ -46,10 +44,12 @@ int main(int argc, char *argv[]){
     pid_t pid = fork();
     if(pid < 0){
       printf("Failed to allocate memory for pid array\n");
+      fclose(file);
       exit(1);
     }else if(pid == 0){
+      fclose(file);
       if(execvp(args[0], args) == -1) {
-        printf("Exec failed\n");
+        printf("Execvp failed for command '%s'\n", args[0]);
         exit(1);
       }
     }else{
