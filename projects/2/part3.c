@@ -88,13 +88,11 @@ int main(int argc, char *argv[]){
     alarm(TIME_SLICE);
   }
 
-  
-
-  for (int i = 0; i < num_processes; i++) {
-    if (!process_completed[i]) { 
-      if (waitpid(pid_array[i], NULL, 0) < 0) {
+  for(int i = 0; i < num_processes; i++){
+    if(!process_completed[i]){
+      if(waitpid(pid_array[i], NULL, 0) < 0){
         perror("Waitpid failed");
-      } else {
+      }else{
         process_completed[i] = 1;
       }
     }
