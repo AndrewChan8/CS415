@@ -146,22 +146,26 @@ int main(int argc, char *argv[]){
 }
 
 void adjust_time_slice(int index){
-  char path[40];
-  snprintf(path, sizeof(path), "/proc/%d/stat", pid_array[index]);
-  FILE *file = fopen(path, "r");
+  if(waitpid(pid_array[index], NULL, WNOHANG) == 0){
+    char path[40];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid_array[index]);
+    FILE *file = fopen(path, "r");
 
-  if(file){
-    long utime, stime;
-    if(fscanf(file, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu", &utime, &stime) == 2){
-      if (utime > stime){// More utime might indicate CPU-bound
-        time_slices[index] = TIME_SLICE + 1;
-      }else{
-        time_slices[index] = (TIME_SLICE - 1 > MIN_TIME_SLICE) ? TIME_SLICE - 1 : MIN_TIME_SLICE; // To prevent it from going less than 1
+    if(file){
+      long utime, stime;
+      if(fscanf(file, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu", &utime, &stime) == 2){
+        if (utime > stime) { // More utime might indicate CPU-bound
+          time_slices[index] = TIME_SLICE + 1;
+        } else {
+          time_slices[index] = (TIME_SLICE - 1 > MIN_TIME_SLICE) ? TIME_SLICE - 1 : MIN_TIME_SLICE;
+        }
       }
+      fclose(file);
+    }else{
+      perror("Error opening /proc/[pid]/stat for time slice adjustment");
     }
-    fclose(file);
   }else{
-    perror("Error opening /proc/stat for time slice adjustment");
+    fprintf(stderr, "Process %d has already terminated, skipping time slice adjustment.\n", pid_array[index]);
   }
 }
 
