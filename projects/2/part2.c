@@ -91,7 +91,6 @@ int main(int argc, char *argv[]){
 }
 
 void signaler(pid_t *pid_array, int size, int signal) {
-  sleep(3);
   for (int i = 0; i < size; i++) {
     printf("Parent process: Sending signal %d to child process %d\n", signal, pid_array[i]);
     kill(pid_array[i], signal);
