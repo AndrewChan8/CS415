@@ -79,10 +79,10 @@ int main(int argc, char *argv[]){
     }else if(pid == 0){
       fclose(file);
       int sig;
-      printf("Child Process: %d - Waiting for SIGUSR1...\n", getpid());
+      // printf("Child Process: %d - Waiting for SIGUSR1...\n", getpid());
 
       sigwait(&sigset, &sig);
-      printf("Child Process: %d - Received SIGUSR1, starting execution.\n", getpid());
+      // printf("Child Process: %d - Received SIGUSR1, starting execution.\n", getpid());
 
       if(execvp(args[0], args) == -1) {
         perror("Execvp failed");
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
   signaler(pid_array, num_processes, SIGSTOP);
 
   for (int i = 0; i < num_processes; i++) {
-    printf("Resuming process %d\n", pid_array[i]);
+    // printf("Resuming process %d\n", pid_array[i]);
     kill(pid_array[i], SIGCONT);
     sleep(1);  // Delay to simulate time-sliced scheduling
   }
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]){
 void signaler(pid_t *pid_array, int size, int signal) {
   sleep(3);
   for (int i = 0; i < size; i++) {
-    printf("Parent process: Sending signal %d to child process %d\n", signal, pid_array[i]);
+    // printf("Parent process: Sending signal %d to child process %d\n", signal, pid_array[i]);
     kill(pid_array[i], signal);
   }
 }

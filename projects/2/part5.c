@@ -7,19 +7,21 @@
 #include <signal.h>
 
 #define TIME_SLICE 1 // Time quantum for the RR (Round Robin) algorithm
+#define MIN_TIME_SLICE 1 // Minimum allowed time quantum
 #define MAX_ARGS 10
 
 void alarm_handler(int sig);
 void signaler(pid_t *pid_array, int size, int signal);
 void display_process_info();
+void adjust_time_slice(int index);
 
-// Moved these outside of main so alarm_handler can access them
 pid_t *pid_array;
-int *process_completed; // Array to track completed processes
+int *process_completed;
+int *time_slices; // Array for the dynamic time slices
 int num_processes = 0;
 int current_process = 0;
 int finished_processes = 0;
-int display_counter = 0; // For displaying the process info every full cycle
+int display_counter = 0;
 
 int count_lines(const char *filename){
   FILE *file = fopen(filename, "r");
@@ -49,15 +51,17 @@ int main(int argc, char *argv[]){
 
   int lines = count_lines(argv[2]);
 
-  pid_array = (pid_t*)malloc(lines * sizeof(pid_t));
-  process_completed = (int*)malloc(lines * sizeof(int));
-  if (!pid_array || !process_completed) {
+  pid_array = (pid_t *)malloc(lines * sizeof(pid_t));
+  process_completed = (int *)malloc(lines * sizeof(int));
+  time_slices = (int *)malloc(lines * sizeof(int));
+  if (!pid_array || !process_completed || !time_slices) {
     perror("Failed to allocate memory for process arrays");
     exit(EXIT_FAILURE);
   }
 
   for (int i = 0; i < lines; i++) {
     process_completed[i] = 0;
+    time_slices[i] = TIME_SLICE;
   }
 
   FILE *file = fopen(argv[2], "r");
@@ -65,6 +69,7 @@ int main(int argc, char *argv[]){
     perror("Error opening file");
     free(pid_array);
     free(process_completed);
+    free(time_slices);
     exit(EXIT_FAILURE);
   }
 
@@ -95,6 +100,7 @@ int main(int argc, char *argv[]){
       fclose(file);
       free(pid_array);
       free(process_completed);
+      free(time_slices);
       exit(EXIT_FAILURE);
     }else if(pid == 0){
       fclose(file);
@@ -105,6 +111,7 @@ int main(int argc, char *argv[]){
         perror("Execvp failed");
         free(pid_array);
         free(process_completed);
+        free(time_slices);
         exit(EXIT_FAILURE);
       }
     }else{
@@ -119,7 +126,7 @@ int main(int argc, char *argv[]){
   if (num_processes > 0) {
     printf("Scheduling Process %d\n", pid_array[current_process]);
     kill(pid_array[current_process], SIGCONT);
-    alarm(TIME_SLICE);
+    alarm(time_slices[current_process]);
   }
 
   for(int i = 0; i < num_processes; i++){
@@ -134,7 +141,28 @@ int main(int argc, char *argv[]){
 
   free(pid_array);
   free(process_completed);
+  free(time_slices);
   return 0;
+}
+
+void adjust_time_slice(int index){
+  char path[40];
+  snprintf(path, sizeof(path), "/proc/%d/stat", pid_array[index]);
+  FILE *file = fopen(path, "r");
+
+  if(file){
+    long utime, stime;
+    if(fscanf(file, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu", &utime, &stime) == 2){
+      if (utime > stime){// More utime might indicate CPU-bound
+        time_slices[index] = TIME_SLICE + 1;
+      }else{
+        time_slices[index] = (TIME_SLICE - 1 > MIN_TIME_SLICE) ? TIME_SLICE - 1 : MIN_TIME_SLICE; // To prevent it from going less than 1
+      }
+    }
+    fclose(file);
+  }else{
+    perror("Error opening /proc/stat for time slice adjustment");
+  }
 }
 
 void display_process_info(){
@@ -177,8 +205,6 @@ void display_process_info(){
   }
 }
 
-
-
 void alarm_handler(int sig){ // Round Robin implementation
   int status;
   if(waitpid(pid_array[current_process], &status, WNOHANG) > 0){
@@ -189,6 +215,7 @@ void alarm_handler(int sig){ // Round Robin implementation
         printf("All child processes have completed.\n");
         free(pid_array);
         free(process_completed);
+        free(time_slices);
         exit(0);
       }
     }
@@ -201,6 +228,7 @@ void alarm_handler(int sig){ // Round Robin implementation
     display_process_info();
   }
 
+  adjust_time_slice(current_process);
   current_process = (current_process + 1) % num_processes;
 
   int start = current_process;
@@ -208,7 +236,7 @@ void alarm_handler(int sig){ // Round Robin implementation
     if(waitpid(pid_array[current_process], &status, WNOHANG) == 0){
       //printf("Scheduling Process %d\n", pid_array[current_process]);
       kill(pid_array[current_process], SIGCONT);
-      alarm(TIME_SLICE);
+      alarm(time_slices[current_process]);
       break;
     }
     current_process = (current_process + 1) % num_processes;
