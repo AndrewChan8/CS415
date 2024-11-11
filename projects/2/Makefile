@@ -17,3 +17,9 @@ part5: part5.c
 
 clean:
 	rm -f *.o part1 part2 part3 part4 part5
+
+iobound: iobound.c
+	gcc iobound.c -o iobound
+
+cpubound: cpubound.c
+	gcc cpubound.c -o cpubound
