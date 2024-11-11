@@ -8,6 +8,21 @@
 
 void signaler(pid_t *pid_array, int size, int signal);
 
+int count_lines(const char *filename) {
+  FILE *file = fopen(filename, "r");
+  if (!file) {
+    perror("Error opening file");
+    exit(EXIT_FAILURE);
+  }
+  int lines = 0;
+  char line[1024];
+  while (fgets(line, sizeof(line), file) != NULL) {
+    lines++;
+  }
+  fclose(file);
+  return lines;
+}
+
 int main(int argc, char *argv[]){
   if(argc != 3){
     fprintf(stderr, "Invalid use: incorrect number of parameters\n");
@@ -19,6 +34,14 @@ int main(int argc, char *argv[]){
     exit(EXIT_FAILURE);
   }
 
+  int num_lines = count_lines(argv[2]);
+
+  pid_t *pid_array = (pid_t*)malloc(num_lines * sizeof(pid_t));
+  if (!pid_array) {
+    perror("Failed to allocate memory for pid_array");
+    exit(EXIT_FAILURE);
+  }
+
   FILE *file = fopen(argv[2], "r");
   if (!file) {
     perror("Error opening file");
@@ -27,7 +50,6 @@ int main(int argc, char *argv[]){
 
   int max_args = 10;
   char line[1024];
-  pid_t pid_array[max_args];
   int num_processes = 0;
 
   sigset_t sigset;
@@ -52,6 +74,7 @@ int main(int argc, char *argv[]){
     if(pid < 0){
       perror("Failed to fork process");
       fclose(file);
+      free(pid_array);
       exit(EXIT_FAILURE);
     }else if(pid == 0){
       fclose(file);
@@ -63,6 +86,7 @@ int main(int argc, char *argv[]){
 
       if(execvp(args[0], args) == -1) {
         perror("Execvp failed");
+        free(pid_array);
         exit(EXIT_FAILURE);
       }
     }else{
@@ -87,10 +111,13 @@ int main(int argc, char *argv[]){
     }
   }
 
+  free(pid_array);
+
   return 0;
 }
 
 void signaler(pid_t *pid_array, int size, int signal) {
+  sleep(3);
   for (int i = 0; i < size; i++) {
     printf("Parent process: Sending signal %d to child process %d\n", signal, pid_array[i]);
     kill(pid_array[i], signal);

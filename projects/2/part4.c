@@ -7,9 +7,11 @@
 #include <signal.h>
 
 #define TIME_SLICE 1 // Time quantum for the RR (Round Robin) algorithm
+#define MAX_ARGS 10
 
 void alarm_handler(int sig);
 void signaler(pid_t *pid_array, int size, int signal);
+void display_process_info();
 
 // Moved these outside of main so alarm_handler can access them
 pid_t *pid_array;
@@ -17,8 +19,9 @@ int *process_completed; // Array to track completed processes
 int num_processes = 0;
 int current_process = 0;
 int finished_processes = 0;
+int display_counter = 0; // For displaying the process info every full cycle
 
-int count_lines(const char *filename) {
+int count_lines(const char *filename){
   FILE *file = fopen(filename, "r");
   if (!file) {
     perror("Error opening file");
@@ -44,17 +47,16 @@ int main(int argc, char *argv[]){
     exit(EXIT_FAILURE);
   }
 
-  int num_lines = count_lines(argv[2]);
+  int lines = count_lines(argv[2]);
 
-  pid_array = (pid_t*)malloc(num_lines * sizeof(pid_t));
-  process_completed = (int*)malloc(num_lines * sizeof(int));
+  pid_array = (pid_t*)malloc(lines * sizeof(pid_t));
+  process_completed = (int*)malloc(lines * sizeof(int));
   if (!pid_array || !process_completed) {
     perror("Failed to allocate memory for process arrays");
     exit(EXIT_FAILURE);
   }
 
-  // Initialize process_completed array
-  for (int i = 0; i < num_lines; i++) {
+  for (int i = 0; i < lines; i++) {
     process_completed[i] = 0;
   }
 
@@ -66,7 +68,6 @@ int main(int argc, char *argv[]){
     exit(EXIT_FAILURE);
   }
 
-  int max_args = 10;
   char line[1024];
 
   sigset_t sigset;
@@ -78,11 +79,11 @@ int main(int argc, char *argv[]){
   while(fgets(line, sizeof(line), file) != NULL){
     line[strcspn(line, "\n")] = '\0';
 
-    char *args[max_args];
+    char *args[MAX_ARGS];
     char *token = strtok(line, " ");
     int j = 0;
 
-    while (token != NULL && j < max_args) {
+    while (token != NULL && j < MAX_ARGS) {
       args[j++] = token;
       token = strtok(NULL, " ");
     }
@@ -135,9 +136,50 @@ int main(int argc, char *argv[]){
 
   free(pid_array);
   free(process_completed);
-
   return 0;
 }
+
+void display_process_info(){
+  printf("\nPID\tutime\tstime\ttime\tnice\tvirt mem\n");
+
+  long clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
+
+  for(int i = 0; i < num_processes; i++){
+    if(process_completed[i]){
+      continue;
+    }
+
+    char path[40];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid_array[i]);
+    FILE *file = fopen(path, "r");
+
+    if(file){
+      long utime, stime;
+      unsigned long vsize;
+      int nice;
+      float total_time;
+
+      if(fscanf(file, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu %*d %d %*d %*d %*d %*d %*d %lu", &utime, &stime, &nice, &vsize) != 4){
+        fprintf(stderr, "Error reading utime, stime, nice, and vsize for PID %d\n", pid_array[i]);
+        fclose(file);
+        exit(EXIT_FAILURE);
+      }
+      fclose(file);
+      total_time = (float)(utime + stime) / clock_ticks_per_sec;
+
+      printf("%d - %0.6f %0.6f %0.6f    %d  %lu\n",
+        pid_array[i],
+        (float)utime / clock_ticks_per_sec,
+        (float)stime / clock_ticks_per_sec,
+        total_time, nice, vsize);
+    }else{
+      fprintf(stderr, "Error opening /proc/%d/stat\n", pid_array[i]);
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
+
 
 void alarm_handler(int sig){ // Round Robin implementation
   int status;
@@ -156,12 +198,17 @@ void alarm_handler(int sig){ // Round Robin implementation
     kill(pid_array[current_process], SIGSTOP);
   }
 
+  display_counter++;
+  if(display_counter % 2 == 0){
+    display_process_info();
+  }
+
   current_process = (current_process + 1) % num_processes;
 
   int start = current_process;
   while(finished_processes < num_processes){
     if(waitpid(pid_array[current_process], &status, WNOHANG) == 0){
-      printf("Scheduling Process %d\n", pid_array[current_process]);
+      //printf("Scheduling Process %d\n", pid_array[current_process]);
       kill(pid_array[current_process], SIGCONT);
       alarm(TIME_SLICE);
       break;
