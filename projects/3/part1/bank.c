@@ -34,6 +34,73 @@ int main(int argc, char *argv[]){
     return EXIT_FAILURE;
   }
 
+  for(int i = 0; i < num_accounts; i++){
 
+    // Index line
+    if(!fgets(buffer, sizeof(buffer), file)){
+      fprintf(stderr, "Error reading index line for account %d\n", i);
+      free(accounts);
+      fclose(file);
+      return EXIT_FAILURE;
+    }
 
+    // Account Number
+    if(fgets(buffer, sizeof(buffer), file)){
+      strncpy(accounts[i].account_number, buffer, sizeof(accounts[i].account_number) - 1);
+      accounts[i].account_number[strcspn(accounts[i].account_number, "\n")] = '\0'; // Remove newline
+    }else{
+      fprintf(stderr, "Error reading account number for account %d\n", i);
+      free(accounts);
+      fclose(file);
+      return EXIT_FAILURE;
+    }
+
+    // Password
+    if(fgets(buffer, sizeof(buffer), file)){
+      strncpy(accounts[i].password, buffer, sizeof(accounts[i].password) - 1);
+      accounts[i].password[strcspn(accounts[i].password, "\n")] = '\0'; // Remove newline
+    }else{
+      fprintf(stderr, "Error reading password for account %d\n", i);
+      free(accounts);
+      fclose(file);
+      return EXIT_FAILURE;
+    }
+
+    // Balance
+    if(fgets(buffer, sizeof(buffer), file)){
+      accounts[i].balance = atof(buffer);
+    }else{
+      fprintf(stderr, "Error reading balance for account %d\n", i);
+      free(accounts);
+      fclose(file);
+      return EXIT_FAILURE;
+    }
+
+    // Reward rate
+    if(fgets(buffer, sizeof(buffer), file)){
+      accounts[i].reward_rate = atof(buffer);
+    }else{
+      fprintf(stderr, "Error reading reward rate for account %d\n", i);
+      free(accounts);
+      fclose(file);
+      return EXIT_FAILURE;
+    }
+
+    // transaction_tracter
+    accounts[i].transaction_tracter = 0.0;
+
+    // out_file
+    snprintf(accounts[i].out_file, sizeof(accounts[i].out_file), "act_%d.txt", i);
+  }
+
+  for (int i = 0; i < num_accounts; i++) {
+    printf("Account %d:\n", i);
+    printf("  Number: %s\n", accounts[i].account_number);
+    printf("  Password: %s\n", accounts[i].password);
+    printf("  Balance: %.2f\n", accounts[i].balance);
+    printf("  Reward Rate: %.3f\n", accounts[i].reward_rate);
+  }
+
+  free(accounts);
+  fclose(file);
 }
