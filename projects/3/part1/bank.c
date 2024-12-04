@@ -3,6 +3,12 @@
 #include <string.h>
 #include "account.h"
 
+void process_transaction(account *accounts, int num_accounts, const char *transaction);
+void update_balance();
+
+int num_accounts;
+account *accounts;
+
 int main(int argc, char *argv[]){
   if(argc != 2){
     fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
@@ -15,8 +21,14 @@ int main(int argc, char *argv[]){
     return EXIT_FAILURE;
   }
 
+  FILE *output_file = fopen("output.txt", "w");
+  if (!output_file) {
+      perror("Error creating the output file");
+      fclose(file);
+      return EXIT_FAILURE;
+  }
+
   char buffer[256];
-  int num_accounts;
 
   if(fgets(buffer, sizeof(buffer), file)){
     num_accounts = atoi(buffer);
@@ -26,7 +38,7 @@ int main(int argc, char *argv[]){
     return EXIT_FAILURE;
   }
 
-  account *accounts = (account *)malloc(num_accounts * sizeof(account));
+  accounts = (account *)malloc(num_accounts * sizeof(account));
 
   if(!accounts){
     perror("Failed to allocate memory for the accounts\n");
@@ -34,6 +46,7 @@ int main(int argc, char *argv[]){
     return EXIT_FAILURE;
   }
 
+  // Accounts
   for(int i = 0; i < num_accounts; i++){
 
     // Index line
@@ -46,8 +59,9 @@ int main(int argc, char *argv[]){
 
     // Account Number
     if(fgets(buffer, sizeof(buffer), file)){
+      buffer[strcspn(buffer, "\n")] = '\0'; // Remove newline from buffer
       strncpy(accounts[i].account_number, buffer, sizeof(accounts[i].account_number) - 1);
-      accounts[i].account_number[strcspn(accounts[i].account_number, "\n")] = '\0'; // Remove newline
+      accounts[i].account_number[sizeof(accounts[i].account_number) - 1] = '\0';
     }else{
       fprintf(stderr, "Error reading account number for account %d\n", i);
       free(accounts);
@@ -57,8 +71,9 @@ int main(int argc, char *argv[]){
 
     // Password
     if(fgets(buffer, sizeof(buffer), file)){
+      buffer[strcspn(buffer, "\n")] = '\0'; // Remove newline from buffer
       strncpy(accounts[i].password, buffer, sizeof(accounts[i].password) - 1);
-      accounts[i].password[strcspn(accounts[i].password, "\n")] = '\0'; // Remove newline
+      accounts[i].password[sizeof(accounts[i].password) - 1] = '\0';
     }else{
       fprintf(stderr, "Error reading password for account %d\n", i);
       free(accounts);
@@ -93,14 +108,92 @@ int main(int argc, char *argv[]){
     snprintf(accounts[i].out_file, sizeof(accounts[i].out_file), "act_%d.txt", i);
   }
 
+  while(fgets(buffer, sizeof(buffer), file)){
+    process_transaction(accounts, num_accounts, buffer);
+  }
+
+  update_balance();
+
   for (int i = 0; i < num_accounts; i++) {
-    printf("Account %d:\n", i);
-    printf("  Number: %s\n", accounts[i].account_number);
-    printf("  Password: %s\n", accounts[i].password);
-    printf("  Balance: %.2f\n", accounts[i].balance);
-    printf("  Reward Rate: %.3f\n", accounts[i].reward_rate);
+    fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
   }
 
   free(accounts);
   fclose(file);
+  fclose(output_file);
+}
+
+void process_transaction(account *accounts, int num_accounts, const char *transaction){
+  char transaction_type;
+  char account_number[17];
+  char password[9];
+  double amount;
+  char dest_account_number[17];
+
+  if(transaction[0] == 'D'){ // Deposit
+    sscanf(transaction, "D %s %s %lf", account_number, password, &amount);
+    if(amount <= 0){
+      fprintf(stderr, "Invalid deposit amount: %s", transaction);
+      return;
+    }
+    for(int i = 0; i < num_accounts; i++){
+      if(strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0){
+        accounts[i].balance += amount;
+        accounts[i].transaction_tracter += amount;
+        return;
+      }
+    }
+  }else if(transaction[0] == 'W'){ // Withdrawl
+    sscanf(transaction, "W %s %s %lf", account_number, password, &amount);
+    if(amount <= 0){
+      fprintf(stderr, "Invalid withdrawal amount: %s", transaction);
+      return;
+    }
+    for(int i = 0; i < num_accounts; i++){
+      if(strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0){
+        if(accounts[i].balance >= amount){
+          accounts[i].balance -= amount;
+          accounts[i].transaction_tracter += amount;
+        }
+        return;
+      }
+    }
+  }else if(transaction[0] == 'T'){ // Transfer
+    sscanf(transaction, "T %s %s %s %lf", account_number, password, dest_account_number, &amount);
+    if(amount <= 0){
+      fprintf(stderr, "Invalid transfer amount: %s", transaction);
+      return;
+    }
+    int source_index = -1, destination_index = -1;
+    for(int i = 0; i < num_accounts; i++){
+      if(strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0){
+        source_index = i;
+      }
+      if(strcmp(accounts[i].account_number, dest_account_number) == 0){
+        destination_index = i;
+      }
+    }
+    if(source_index != -1 && destination_index != -1){
+      if(accounts[source_index].balance >= amount){
+        accounts[source_index].balance -= amount;
+        accounts[destination_index].balance += amount;
+        accounts[source_index].transaction_tracter += amount;
+      }
+    }
+  }else if(transaction[0] == 'C'){ // Check
+    sscanf(transaction, "C %s %s", account_number, password);
+    for(int i = 0; i < num_accounts; i++){
+      if (strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0) {
+        return;
+      }
+    }
+  }else{ // Invalid
+    fprintf(stderr, "Unknown transaction type: %s", transaction);
+  }
+}
+
+void update_balance(){
+  for(int i = 0; i < num_accounts; i++){
+    accounts[i].balance += accounts[i].transaction_tracter * accounts[i].reward_rate;
+  }
 }
