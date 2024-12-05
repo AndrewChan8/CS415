@@ -22,10 +22,10 @@ int main(int argc, char *argv[]){
   }
 
   FILE *output_file = fopen("output.txt", "w");
-  if (!output_file) {
-      perror("Error creating the output file");
-      fclose(file);
-      return EXIT_FAILURE;
+  if(!output_file){
+    perror("Error creating the output file");
+    fclose(file);
+    return EXIT_FAILURE;
   }
 
   char buffer[256];
