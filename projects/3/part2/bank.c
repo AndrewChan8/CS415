@@ -181,7 +181,6 @@ int main(int argc, char *argv[]){
     free(transactions[i]);
   }
 
-  printf("Total transactions: %d\n", total_transactions);
   free(transactions);
   free(accounts);
   pthread_mutex_destroy(&account_mutex);
