@@ -7,15 +7,24 @@
 #define NUM_WORKERS 10
 
 void process_transaction(account *accounts, int num_accounts, const char *transaction);
-void update_balance();
+void *update_balance(void *arg);
 void *process_worker(void *arg);
 
 int num_accounts;
 account *accounts;
-pthread_mutex_t account_mutex;
+char **transactions;
 
 pthread_t threads[NUM_WORKERS];
-char **transactions;
+pthread_mutex_t account_mutex;
+pthread_mutex_t transaction_mutex;
+pthread_cond_t cond_bank;
+pthread_cond_t cond_workers;
+pthread_barrier_t start_barrier;
+
+int all_transactions_processed = 0;
+int global_transaction_count = 0;
+int workers_waiting = 0;
+int threshold = 5000;
 
 int main(int argc, char *argv[]){
   if(argc != 2){
@@ -54,6 +63,10 @@ int main(int argc, char *argv[]){
   }
 
   pthread_mutex_init(&account_mutex, NULL);
+  pthread_mutex_init(&transaction_mutex, NULL);
+  pthread_cond_init(&cond_bank, NULL);
+  pthread_cond_init(&cond_workers, NULL);
+  pthread_barrier_init(&start_barrier, NULL, NUM_WORKERS + 1);
 
   // Accounts
   for(int i = 0; i < num_accounts; i++){
@@ -147,6 +160,7 @@ int main(int argc, char *argv[]){
   int transactions_per_thread = total_transactions / NUM_WORKERS;
   int remaining_transactions = total_transactions % NUM_WORKERS;
 
+  // Create worker threads
   for (int i = 0; i < NUM_WORKERS; i++) {
     int start_index = i * transactions_per_thread;
     int end_index = start_index + transactions_per_thread;
@@ -163,15 +177,26 @@ int main(int argc, char *argv[]){
     pthread_create(&threads[i], NULL, process_worker, (void *)range);
   }
 
+  // Create bankn threads
+  pthread_t bank_thread;
+  pthread_create(&bank_thread, NULL, update_balance, NULL);
+
+
   // Wait for all threads to finish
   for (int i = 0; i < NUM_WORKERS; i++) {
     pthread_join(threads[i], NULL);
   }
 
-  update_balance();
+  pthread_mutex_lock(&transaction_mutex);
+  all_transactions_processed = 1;
+  pthread_cond_signal(&cond_bank);
+  pthread_mutex_unlock(&transaction_mutex);
+
+  pthread_join(bank_thread, NULL);
 
   for (int i = 0; i < num_accounts; i++) {
-    fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
+    // fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
+    printf("%d balance:\t%.2f\n\n", i, accounts[i].balance);
   }
 
   // Free memory
@@ -182,6 +207,10 @@ int main(int argc, char *argv[]){
   free(transactions);
   free(accounts);
   pthread_mutex_destroy(&account_mutex);
+  pthread_mutex_destroy(&transaction_mutex);
+  pthread_cond_destroy(&cond_bank);
+  pthread_cond_destroy(&cond_workers);
+  pthread_barrier_destroy(&start_barrier);
 
   fclose(file);
   fclose(output_file);
@@ -256,11 +285,42 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
   }
 }
 
-void update_balance(){
-  for(int i = 0; i < num_accounts; i++){
-    accounts[i].balance += accounts[i].transaction_tracter * accounts[i].reward_rate;
+void *update_balance(void *arg){
+  while(1){
+    pthread_mutex_lock(&transaction_mutex);
+    while(workers_waiting < NUM_WORKERS && !all_transactions_processed){
+      pthread_cond_wait(&cond_bank, &transaction_mutex);
+    }
+
+    if(all_transactions_processed){
+      pthread_mutex_unlock(&transaction_mutex);
+      break;
+    }
+
+    // Perform balance updates
+    for(int i = 0; i < num_accounts; i++){
+      accounts[i].balance += accounts[i].transaction_tracter * accounts[i].reward_rate;
+      accounts[i].transaction_tracter = 0.0;
+
+      // Write updated balance to account file
+      FILE *account_file = fopen(accounts[i].out_file, "a"); // "a" for append
+      if(account_file){
+        fprintf(account_file, "%.2f\n", accounts[i].balance);
+        fclose(account_file);
+      }
+    }
+
+    // Reset global transaction count
+    global_transaction_count = 0;
+    workers_waiting = 0;
+
+    // Notify workers to continue
+    pthread_cond_broadcast(&cond_workers);
+    pthread_mutex_unlock(&transaction_mutex);
   }
+  return NULL;
 }
+
 
 void *process_worker(void *arg) {
   int *range = (int *)arg;
