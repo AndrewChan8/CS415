@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <sys/stat.h>
+#include <errno.h> 
 #include "account.h"
 
 #define NUM_WORKERS 10
@@ -42,6 +44,12 @@ int main(int argc, char *argv[]){
   if(!output_file){
     perror("Error creating the output file");
     fclose(file);
+    return EXIT_FAILURE;
+  }
+
+  // Making the output directory
+  if (mkdir("output", 0777) == -1 && errno != EEXIST) {
+    perror("Error creating output directory");
     return EXIT_FAILURE;
   }
 
@@ -127,7 +135,7 @@ int main(int argc, char *argv[]){
     accounts[i].transaction_tracter = 0.0;
 
     // out_file
-    snprintf(accounts[i].out_file, sizeof(accounts[i].out_file), "act_%d.txt", i);
+    snprintf(accounts[i].out_file, sizeof(accounts[i].out_file), "output/act_%d.txt", i);
   }
 
   // Count transactions
@@ -195,8 +203,8 @@ int main(int argc, char *argv[]){
   pthread_join(bank_thread, NULL);
 
   for (int i = 0; i < num_accounts; i++) {
-    // fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
-    printf("%d balance:\t%.2f\n\n", i, accounts[i].balance);
+    fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
+    // printf("%d balance:\t%.2f\n\n", i, accounts[i].balance);
   }
 
   // Free memory
@@ -288,6 +296,8 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
 void *update_balance(void *arg){
   while(1){
     pthread_mutex_lock(&transaction_mutex);
+
+    // Wait for signal from workers or completion flag
     while(workers_waiting < NUM_WORKERS && !all_transactions_processed){
       pthread_cond_wait(&cond_bank, &transaction_mutex);
     }
@@ -297,42 +307,65 @@ void *update_balance(void *arg){
       break;
     }
 
-    // Perform balance updates
+    // Update all account balances
     for(int i = 0; i < num_accounts; i++){
       accounts[i].balance += accounts[i].transaction_tracter * accounts[i].reward_rate;
       accounts[i].transaction_tracter = 0.0;
 
-      // Write updated balance to account file
-      FILE *account_file = fopen(accounts[i].out_file, "a"); // "a" for append
-      if(account_file){
-        fprintf(account_file, "%.2f\n", accounts[i].balance);
-        fclose(account_file);
+      // Write updated balances to individual files
+      FILE *account_file = fopen(accounts[i].out_file, "a");
+      if(!account_file){
+        fprintf(stderr, "Error opening file for account %d\n", i);
+        continue;
       }
+      fprintf(account_file, "Balance: %.2f\n", accounts[i].balance);
+      fclose(account_file);
     }
 
-    // Reset global transaction count
+    // Reset counters for the next batch
     global_transaction_count = 0;
     workers_waiting = 0;
 
-    // Notify workers to continue
     pthread_cond_broadcast(&cond_workers);
     pthread_mutex_unlock(&transaction_mutex);
   }
   return NULL;
 }
 
-
-void *process_worker(void *arg) {
+void *process_worker(void *arg){
   int *range = (int *)arg;
   int start_index = range[0];
   int end_index = range[1];
   free(range);
 
-  for (int i = start_index; i < end_index; i++) {
+  for(int i = start_index; i < end_index; i++){
     pthread_mutex_lock(&account_mutex);
     process_transaction(accounts, num_accounts, transactions[i]);
     pthread_mutex_unlock(&account_mutex);
+
+    // Update global transaction count
+    pthread_mutex_lock(&transaction_mutex);
+    global_transaction_count++;
+
+    if(global_transaction_count >= threshold){
+      workers_waiting++;
+      if(workers_waiting == NUM_WORKERS){
+        pthread_cond_signal(&cond_bank);  // Notify bank thread
+      }
+      while (global_transaction_count >= threshold && workers_waiting < NUM_WORKERS) {
+        pthread_cond_wait(&cond_workers, &transaction_mutex);
+      }
+    }
+    pthread_mutex_unlock(&transaction_mutex);
   }
+
+  // Final worker synchronization
+  pthread_mutex_lock(&transaction_mutex);
+  workers_waiting++;
+  if(workers_waiting == NUM_WORKERS){
+    pthread_cond_signal(&cond_bank);  // Notify bank thread all workers are done
+  }
+  pthread_mutex_unlock(&transaction_mutex);
 
   return NULL;
 }
