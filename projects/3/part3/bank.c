@@ -140,11 +140,10 @@ int main(int argc, char *argv[]){
   // Store transactions
   int index = 0;
   while (fgets(buffer, sizeof(buffer), file)) {
-    transactions[index] = strdup(buffer); // Duplicate transaction line
+    transactions[index] = strdup(buffer);
     index++;
   }
 
-  // Now, divide transactions and create worker threads
   int transactions_per_thread = total_transactions / NUM_WORKERS;
   int remaining_transactions = total_transactions % NUM_WORKERS;
 
@@ -173,7 +172,6 @@ int main(int argc, char *argv[]){
 
   for (int i = 0; i < num_accounts; i++) {
     fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
-    // printf("%d balance:\t%.2f\n\n", i, accounts[i].balance);
   }
 
   // Free memory

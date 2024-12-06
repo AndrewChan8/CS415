@@ -140,7 +140,7 @@ int main(int argc, char *argv[]){
   // Store transactions
   int index = 0;
   while (fgets(buffer, sizeof(buffer), file)) {
-    transactions[index] = strdup(buffer); // Duplicate transaction line
+    transactions[index] = strdup(buffer);
     index++;
   }
 
@@ -173,7 +173,6 @@ int main(int argc, char *argv[]){
 
   for (int i = 0; i < num_accounts; i++) {
     fprintf(output_file, "%d balance:\t%.2f\n\n", i, accounts[i].balance);
-    // printf("%d balance:\t%.2f\n\n", i, accounts[i].balance);
   }
 
   // Free memory
