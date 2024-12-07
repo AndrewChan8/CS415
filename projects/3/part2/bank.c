@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "account.h"
 
 #define NUM_WORKERS 10
@@ -9,13 +12,19 @@
 void process_transaction(account *accounts, int num_accounts, const char *transaction);
 void update_balance();
 void *process_worker(void *arg);
+void auditor_process(int pipe_fd);
 
 int num_accounts;
 account *accounts;
 pthread_mutex_t account_mutex;
+pthread_mutex_t auditor_mutex;
 
 pthread_t threads[NUM_WORKERS];
 char **transactions;
+
+int pipe_fd[2]; // Global variable for the pipe
+
+int check_balance_count = 0;
 
 int main(int argc, char *argv[]){
   if(argc != 2){
@@ -54,6 +63,7 @@ int main(int argc, char *argv[]){
   }
 
   pthread_mutex_init(&account_mutex, NULL);
+  pthread_mutex_init(&auditor_mutex, NULL);
 
   // Accounts
   for(int i = 0; i < num_accounts; i++){
@@ -115,6 +125,9 @@ int main(int argc, char *argv[]){
 
     // out_file
     snprintf(accounts[i].out_file, sizeof(accounts[i].out_file), "act_%d.txt", i);
+
+    // Initialize each account's mutex lock
+    pthread_mutex_init(&accounts[i].ac_lock, NULL);
   }
 
   // Count transactions
@@ -144,7 +157,27 @@ int main(int argc, char *argv[]){
     index++;
   }
 
-  // Now, divide transactions and create worker threads
+  if(pipe(pipe_fd) == -1){
+    perror("Error creating pipe");
+    exit(EXIT_FAILURE);
+  }
+
+  pid_t pid = fork();
+  if(pid == -1){
+    perror("Error forking process");
+    exit(EXIT_FAILURE);
+  }else if(pid == 0){
+    // Child process (Auditor)
+    close(pipe_fd[1]);
+    auditor_process(pipe_fd[0]);
+    close(pipe_fd[0]);
+    exit(0);
+  }else{
+    // Parent process (Bank)
+    close(pipe_fd[0]);
+  }
+
+  // Divide transactions and create worker threads
   int transactions_per_thread = total_transactions / NUM_WORKERS;
   int remaining_transactions = total_transactions % NUM_WORKERS;
 
@@ -180,9 +213,14 @@ int main(int argc, char *argv[]){
     free(transactions[i]);
   }
 
+  for (int i = 0; i < num_accounts; i++) {
+    pthread_mutex_destroy(&accounts[i].ac_lock);
+  }
+
   free(transactions);
   free(accounts);
   pthread_mutex_destroy(&account_mutex);
+  pthread_mutex_destroy(&auditor_mutex);
 
   fclose(file);
   fclose(output_file);
@@ -263,11 +301,26 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
       pthread_mutex_unlock(&accounts[source_index].ac_lock);
       pthread_mutex_unlock(&accounts[destination_index].ac_lock);
     }
-  }else if(transaction[0] == 'C'){ // Check
+  }else if(transaction[0] == 'C'){ // Check Balance
     sscanf(transaction, "C %s %s", account_number, password);
-    for(int i = 0; i < num_accounts; i++){
+    for (int i = 0; i < num_accounts; i++) {
       if (strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0) {
         pthread_mutex_lock(&accounts[i].ac_lock);
+
+        pthread_mutex_lock(&auditor_mutex);
+        check_balance_count++;
+        if(check_balance_count % 500 == 0){
+          // Notify the Auditor
+          time_t now = time(NULL);
+          char time_str[64];
+          strftime(time_str, sizeof(time_str), "%a %b %d %H:%M:%S %Y", localtime(&now)); // Format: Day Mon DD HH:MM:SS YYYY
+
+          char buffer[256];
+          snprintf(buffer, sizeof(buffer), "Worker checked balance of Account %s. Balance is $%.2f. Check occurred at %s\n", accounts[i].account_number, accounts[i].balance, time_str);
+          write(pipe_fd[1], buffer, strlen(buffer)); // Write to the pipe
+        }
+
+        pthread_mutex_unlock(&auditor_mutex);
         pthread_mutex_unlock(&accounts[i].ac_lock);
         return;
       }
@@ -277,13 +330,27 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
   }
 }
 
-void update_balance(){
-  for(int i = 0; i < num_accounts; i++){
+void update_balance() {
+  for (int i = 0; i < num_accounts; i++) {
     pthread_mutex_lock(&accounts[i].ac_lock);
+
+    double previous_balance = accounts[i].balance;
     accounts[i].balance += accounts[i].transaction_tracter * accounts[i].reward_rate;
+
+    // Notify Auditor
+    time_t now = time(NULL);
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "%a %b %d %H:%M:%S %Y", localtime(&now));
+
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "Applied Interest to account %s. New Balance: $%.2f. Time of Update: %s\n", accounts[i].account_number, accounts[i].balance, time_str);
+
+    write(pipe_fd[1], buffer, strlen(buffer)); // Write to the pipe
+
     pthread_mutex_unlock(&accounts[i].ac_lock);
   }
 }
+
 
 void *process_worker(void *arg) {
   int *range = (int *)arg;
@@ -296,4 +363,31 @@ void *process_worker(void *arg) {
   }
 
   return NULL;
+}
+
+void auditor_process(int pipe_fd) {
+  FILE *ledger = fopen("ledger.txt", "w");
+  if (!ledger) {
+    perror("Error opening ledger file");
+    exit(EXIT_FAILURE);
+  }
+
+  char buffer[256];
+  while (1) {
+    ssize_t bytes_read = read(pipe_fd, buffer, sizeof(buffer) - 1);
+    if (bytes_read > 0) {
+      buffer[bytes_read] = '\0'; // Null-terminate the buffer
+      fprintf(ledger, "%s", buffer); // Write to the ledger
+      fflush(ledger); // Ensure it is immediately written to disk
+    } else if (bytes_read == 0) {
+      // End of input; Duck Bank is done
+      break;
+    } else {
+      perror("Error reading from pipe");
+      break;
+    }
+  }
+
+  fclose(ledger);
+  exit(0); // Exit the Auditor process
 }
