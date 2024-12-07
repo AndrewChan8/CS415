@@ -147,6 +147,9 @@ int main(int argc, char *argv[]){
 
     // out_file
     snprintf(accounts[i].out_file, sizeof(accounts[i].out_file), "output/act_%d.txt", i);
+
+    // Initialize each account's mutex lock
+    pthread_mutex_init(&accounts[i].ac_lock, NULL);
   }
 
   // Count transactions
