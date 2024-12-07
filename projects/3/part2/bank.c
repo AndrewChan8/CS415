@@ -202,6 +202,7 @@ int main(int argc, char *argv[]){
     pthread_join(threads[i], NULL);
   }
 
+
   update_balance();
 
   for (int i = 0; i < num_accounts; i++) {
@@ -350,7 +351,6 @@ void update_balance() {
     pthread_mutex_unlock(&accounts[i].ac_lock);
   }
 }
-
 
 void *process_worker(void *arg) {
   int *range = (int *)arg;
