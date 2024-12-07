@@ -203,8 +203,10 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
     }
     for(int i = 0; i < num_accounts; i++){
       if(strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0){
+        pthread_mutex_lock(&accounts[i].ac_lock);
         accounts[i].balance += amount;
         accounts[i].transaction_tracter += amount;
+        pthread_mutex_unlock(&accounts[i].ac_lock);
         return;
       }
     }
@@ -215,11 +217,15 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
       return;
     }
     for(int i = 0; i < num_accounts; i++){
-      if(strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0){
+      if(strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0) {
+        pthread_mutex_lock(&accounts[i].ac_lock);
         if(accounts[i].balance >= amount){
           accounts[i].balance -= amount;
           accounts[i].transaction_tracter += amount;
+        }else{
+          fprintf(stderr, "Withdrawal failed: Insufficient balance\n");
         }
+        pthread_mutex_unlock(&accounts[i].ac_lock);
         return;
       }
     }
@@ -239,16 +245,30 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
       }
     }
     if(source_index != -1 && destination_index != -1){
-      if(accounts[source_index].balance >= amount){
+      if (source_index < destination_index) {
+        pthread_mutex_lock(&accounts[source_index].ac_lock);
+        pthread_mutex_lock(&accounts[destination_index].ac_lock);
+      }else{
+        pthread_mutex_lock(&accounts[destination_index].ac_lock);
+        pthread_mutex_lock(&accounts[source_index].ac_lock);
+      }
+
+      if (accounts[source_index].balance >= amount) {
         accounts[source_index].balance -= amount;
         accounts[destination_index].balance += amount;
         accounts[source_index].transaction_tracter += amount;
       }
+
+      // Unlock both accounts
+      pthread_mutex_unlock(&accounts[source_index].ac_lock);
+      pthread_mutex_unlock(&accounts[destination_index].ac_lock);
     }
   }else if(transaction[0] == 'C'){ // Check
     sscanf(transaction, "C %s %s", account_number, password);
     for(int i = 0; i < num_accounts; i++){
       if (strcmp(accounts[i].account_number, account_number) == 0 && strcmp(accounts[i].password, password) == 0) {
+        pthread_mutex_lock(&accounts[i].ac_lock);
+        pthread_mutex_unlock(&accounts[i].ac_lock);
         return;
       }
     }
@@ -259,7 +279,9 @@ void process_transaction(account *accounts, int num_accounts, const char *transa
 
 void update_balance(){
   for(int i = 0; i < num_accounts; i++){
+    pthread_mutex_lock(&accounts[i].ac_lock);
     accounts[i].balance += accounts[i].transaction_tracter * accounts[i].reward_rate;
+    pthread_mutex_unlock(&accounts[i].ac_lock);
   }
 }
 
@@ -270,9 +292,7 @@ void *process_worker(void *arg) {
   free(range);
 
   for (int i = start_index; i < end_index; i++) {
-    pthread_mutex_lock(&account_mutex);
     process_transaction(accounts, num_accounts, transactions[i]);
-    pthread_mutex_unlock(&account_mutex);
   }
 
   return NULL;
